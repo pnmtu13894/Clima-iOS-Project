@@ -3,9 +3,37 @@
 import UIKit
 
 class WeatherDataModel {
+    
+    
 
     //Declare your model variables here
+    let temperature: Int?
+    let humidity: Int?
+    let uvIndex: Int?
+    let summary: String?
+    let icon: String?
     
+    struct WeatherKeys {
+        static let temperature = "temperature"
+        static let humidity = "humidity"
+        static let uvIndex = "uvIndex"
+        static let summary = "summary"
+        static let icon = "icon"
+    }
+    
+    init(weatherDictionary: [String: Any]) {
+        temperature = weatherDictionary[WeatherKeys.temperature] as? Int
+        
+        if let humidityPercent = weatherDictionary[WeatherKeys.humidity] as? Double {
+            humidity = Int(humidityPercent * 100)
+        } else {
+            humidity = nil
+        }
+        
+        uvIndex = weatherDictionary[WeatherKeys.uvIndex] as? Int
+        summary = weatherDictionary[WeatherKeys.summary] as? String
+        icon = weatherDictionary[WeatherKeys.icon] as? String
+    }
     
     //This method turns a condition code into the name of the weather condition image
     
