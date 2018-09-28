@@ -6,13 +6,29 @@ import Alamofire
 import SwiftyJSON
 import SwiftSky
 
-class WeatherViewController: UIViewController, CLLocationManagerDelegate {
+class WeatherViewController: UIViewController, CLLocationManagerDelegate, UICollectionViewDelegate, UICollectionViewDataSource {
+    
     
     //Constants
     
     let BASE_URL = "https://dataservice.accuweather.com/"
     let weatherLocation = "locations/v1/cities/search?"
-    let API_KEY = "apikey=mgVsk0C3MVeSwt9N3St2op81fD7muHmD"
+    let currentWeatherConds = "currentconditions/v1/"
+    let hourlyWeatherConds = "forecasts/v1/hourly/12hour/"
+    let API_KEY = "apikey=  "
+    
+    var testData = [["Now", UIImage(named: "cloudy2")!, "21°"],
+                    ["11AM", UIImage(named: "cloudy2")!, "21°"],
+                    ["12PM", UIImage(named: "cloudy2")!, "21°"],
+                    ["13PM", UIImage(named: "cloudy2")!, "21°"],
+                    ["14PM", UIImage(named: "cloudy2")!, "21°"],
+                    ["15PM", UIImage(named: "cloudy2")!, "21°"],
+                    ["16PM", UIImage(named: "cloudy2")!, "21°"],
+                    ["17PM", UIImage(named: "cloudy2")!, "21°"],
+                    ["18PM", UIImage(named: "cloudy2")!, "21°"],
+                    ["19PM", UIImage(named: "cloudy2")!, "21°"],
+                    ["20PM", UIImage(named: "cloudy2")!, "21°"],
+                    ["21PM", UIImage(named: "cloudy2")!, "21°"]]
     
     var city: String!
     
@@ -25,40 +41,90 @@ class WeatherViewController: UIViewController, CLLocationManagerDelegate {
     @IBOutlet weak var weatherIcon: UIImageView!
     @IBOutlet weak var cityLabel: UILabel!
     @IBOutlet weak var temperatureLabel: UILabel!
-
+    @IBOutlet weak var CollectionWeatherView: UICollectionView!
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
 //        /locations/v1/cities/search?apikey=mgVsk0C3MVeSwt9N3St2op81fD7muHmD&q=London HTTP/1.1
-        
         //TODO:Set up the location manager here.
         locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        locationManager.desiredAccuracy = kCLLocationAccuracyBest
         locationManager.requestWhenInUseAuthorization()
         locationManager.startUpdatingLocation()
         
         
     }
     
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return testData.count
+    }
     
-    func getWeatherData(cityName: String) {
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "Cell", for: indexPath) as! CollectionWeatherCellCollectionViewCell
+        
+        cell.HourLabel.text = testData[indexPath.row][0] as? String
+        cell.iconLabel.image = testData[indexPath.row][1] as? UIImage
+        cell.tempLabel.text = testData[indexPath.row][2] as? String
+        
+        return cell
+    }
+    
+    
+    
+    func retrieveData(url: URL, completion: @escaping ([[String : Any]]) -> Void){
+        
+        
+        Alamofire.request(url).responseJSON { (response) in
+            if response.result.isSuccess {
+                if let dataset = response.result.value as? [[String : Any]] {
+                    completion(dataset)
+                }
+            } else {
+                print("")
+            }
+        }
+    }
+    
+    func getCityData(cityName: String) {
     
 //        let coordinate = "\(parameters.0),\(parameters.1)"
 //        /locations/v1/cities/geoposition/search?apikey=mgVsk0C3MVeSwt9N3St2op81fD7muHmD&q=37.33233141%2C-122.0312186&details=true HTTP/1.1
         let weatherURL = URL(string: "\(BASE_URL)\(weatherLocation)\(API_KEY)&q=\(cityName)")
-        print(weatherURL)
-        Alamofire.request(weatherURL!).responseJSON { (response) in
-            print(response.result)
-            let weatherData : JSON = JSON(response.result.value)
-            //            weatherData.dictionary
-//            print(weatherData[weatherData.count - 1]["Key"])
-            print(weatherData)
+//        Alamofire.request(weatherURL!).responseJSON { (response) in
+//            if response.result.isSuccess{
+//                let weatherData : JSON = JSON(response.result.value!)
+//                print(weatherData[0]["Key"])
+//            } else {
+//                self.cityLabel.text = "Connection Issues"
+//            }
+//
+//        }
+        retrieveData(url: weatherURL!) { (cityData) in
+            let cityCode = cityData[0]["Key"]
+//            /forecasts/v1/hourly/12hour/332094?apikey=mgVsk0C3MVeSwt9N3St2op81fD7muHmD
+            let hourlyWeatherURL = URL(string: "\(self.BASE_URL)\(self.hourlyWeatherConds)\(cityCode!)?\(self.API_KEY)")
+            print(hourlyWeatherURL)
+            self.retrieveData(url: hourlyWeatherURL!, completion: { (hourlyWeatherData) in
+                print(hourlyWeatherData)
+            })
+            
+//            if let data = cityData as? [[String : Any]] {
+//                print(data)
+//            }
         }
         
         
         
-    }
+    }        //    GET /currentconditions/v1/328328?apikey=mgVsk0C3MVeSwt9N3St2op81fD7muHmD HTTP/1.1
+
+    func getCurrentConditions(code: String){
     
+        let weatherURL = URL(string: "\(BASE_URL)\(currentWeatherConds)\(code)?\(API_KEY)")!
+        
+        
+    
+    }
     
     //MARK: - Networking
     /***************************************************************/
@@ -92,39 +158,14 @@ class WeatherViewController: UIViewController, CLLocationManagerDelegate {
     //MARK: - Location Manager Delegate Methods
     /***************************************************************/
     
+    
+    
     //Convert geoposition to location
-    func fetchCityAndCountry(from location: CLLocation, completion: @escaping (_ city: String?, _ country:  String?, _ error: Error?) -> ()) {
-        CLGeocoder().reverseGeocodeLocation(location) { placemarks, error in
-            
-            print("Here is location: \(location)")
-            print(placemarks?.count)
-            
-            completion(placemarks?.first?.locality,
-                       placemarks?.first?.country,
-                       error)
-        }
+    
+    func geocode(location: CLLocation, completion: @escaping (CLPlacemark?, Error?) -> ())  {
+        CLGeocoder().reverseGeocodeLocation(location) { completion($0?.first, $1) }
     }
-    
-    
-    func getPlaceName(location: CLLocation, completion: @escaping (_ answer: String?) -> Void) {
-        
-//        let coordinates = CLLocation(latitude: latitude, longitude: longitude)
-        
-        CLGeocoder().reverseGeocodeLocation(location, completionHandler: {(placemarks, error) -> Void in
-            if (error != nil) {
-                print("Reverse geocoder failed with an error " + (error?.localizedDescription)!)
-                completion("Error")
-            } else if (placemarks?.count)! > 0 {
-                let pm = placemarks![0] as CLPlacemark
-                completion(self.displayLocationInfo(placemark: pm))
-            } else {
-                print("Problems with the data received from geocoder.")
-                completion("Placemark Errror")
-            }
-        })
-        
-    }
-    
+
     func displayLocationInfo(placemark: CLPlacemark?) -> String
     {
         if let containsPlacemark = placemark
@@ -154,26 +195,28 @@ class WeatherViewController: UIViewController, CLLocationManagerDelegate {
             
             print("Longitude: \(location.coordinate.longitude), Latitude: \(location.coordinate.latitude)")
 
-            let latitude = location.coordinate.latitude
-            let longitude = location.coordinate.longitude
+            let latitude : CLLocationDegrees = location.coordinate.latitude
+            let longitude : CLLocationDegrees = location.coordinate.longitude
 
+            var location = CLLocation(latitude: latitude, longitude: longitude)
+            
             let params = CLLocation(latitude: latitude, longitude: longitude)
             
             var dataDict : [String : String] = ["lat": String(latitude), "long": String(longitude)]
             
             print(params)
             
-            
-            getPlaceName(location: params) { (answer) in
-                print("City is: \(answer!)")
-                self.cityLabel.text = "\(answer!)"
-                self.getWeatherData(cityName: answer!)
+            geocode(location: location) { (placemarks, error) in
+                guard let placemarks = placemarks, error == nil else {return}
+                
+                DispatchQueue.main.async {
+                    //  update UI here
+                    self.getCityData(cityName: placemarks.locality!)
+                }
+                
             }
-            
-            
-            
-//            getWeatherData(cityName: "Cupertino")
-
+        } else {
+            self.cityLabel.text = "Connection Issues"
         }
     }
     
@@ -196,11 +239,6 @@ class WeatherViewController: UIViewController, CLLocationManagerDelegate {
 
     
     //Write the PrepareForSegue Method here
-    
-    
-    
-    
-    
 }
 
 
